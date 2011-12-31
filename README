@@ -1,0 +1,38 @@
+-----------------------------
+QUICKSTART
+-----------------------------
+
+run "mvn compile"
+run "mvn exec:java"
+Browse to: http://localhost:8080
+
+-----------------------------
+Recommended development workflow : Eclipse + JRebel + Maven
+-----------------------------
+
+Import project in Eclipse, add Scala nature, and leave enabled "Build Automatically".
+
+Run: "./start.sh"
+
+Now modifying & saving in Eclipse will result in immediate changes picked up from JRebel.
+
+Hint: it might be a good idea to increase permgen size: edit start.sh, add to MAVEN_OPTS "-XX:MaxPermSize=256m" 
+
+-----------------------------
+Alternate development workflow : Eclipse + Maven (without JRebel)
+-----------------------------
+
+Import project in Eclipse, add Scala nature.
+mvn exec:java
+Manual refresh, via CTRL-C and restart
+
+
+-----------------------------
+Packaging & Deployment
+-----------------------------
+Run "mvn package"
+The resulting artifact should be called : <artifactId>-<version>.jar
+Copy the artifact for example: sample-1.0.jar to the desired location
+Run the application : java -jar sample-1.0.jar
+
+Note: you might want to add to the command line JVM tuning options, such as max heap size (-Xmx), permgen size
