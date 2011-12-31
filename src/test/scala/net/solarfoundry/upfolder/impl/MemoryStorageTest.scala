@@ -187,7 +187,7 @@ class MemoryStorageTest extends FunSuite with ShouldMatchers {
     foundHandles should (have size (1) and contain (handle1))
   }
 
-  test("scenario run: create, access data, find, delete") {
+  ignore("scenario run: create, access data, find, delete") {
     val storage = CreateStorage.eventGenerating.andLogging.inMemory().asInstanceOf[MemoryStorage]
     val handle = storage.create("/path/to/stuff","myfile")
     storage(handle).bytes = Array(1,2,3,4)
