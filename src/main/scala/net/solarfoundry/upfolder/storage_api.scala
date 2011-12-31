@@ -11,9 +11,11 @@ case class Handle(id: UUID) {
   override def toString() = id.toString()
 }
 
+/**
+ * Best practice: either use always create _or_ createUnique
+ */
 trait Storage {
   def create(path: String, name: String): Handle
-  def delete(handle: Handle)
   
   def createUnique(path: String, name: String) = {
     val handle = create(path, name)
@@ -23,6 +25,8 @@ trait Storage {
     }
     handle
   }
+
+  def delete(handle: Handle)
 
   /**
    * Multiple entries are allowed with same (path,name)
