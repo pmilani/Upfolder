@@ -6,10 +6,12 @@ import org.scalatest.Assertions
 import org.scalatest.matchers.ShouldMatchers
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-
 import events._
-
-class TestStorage extends MemoryStorage with EventGeneratingStorage with StorageEventsCollecting
+import org.scalatest.matchers.BePropertyMatchResult
+import org.scalatest.matchers.BePropertyMatcher
+import org.scalatest.mock.MockitoSugar
+import org.specs.mock.Mockito
+import org.specs.specification.DefaultExampleExpectationsListener
 
 /**
  * Event matchers DSL for testing.
@@ -20,6 +22,7 @@ class TestStorage extends MemoryStorage with EventGeneratingStorage with Storage
  * 
  * Additional handy operations:
  * "storage clear events"
+ * "storage dump events" : to stdout
  * 
  * Note: syntactic sugar allows to type "StorageUpdated" where event types would be needed, but 
  * they are matched always and only by name.
@@ -60,8 +63,12 @@ trait EventMatchers {
   object events extends RichStorageArgument
     
   class TestfulRichStorage(s: StorageEventsCollecting) {
-    def clear(what: RichStorageArgument) = {
+    def clear(what: RichStorageArgument) {
       if (what == events) s.receivedEvents.clear()
+    }
+    def dump(what: RichStorageArgument) {
+      if (what == events) 
+      println(s.receivedEvents.mkString(","))
     }
   }
 
@@ -85,24 +92,60 @@ trait EventMatchers {
       second.verifyEvents(events)
     }
   }
+  
+  def instanceOf[T <: AnyRef](implicit manifest: Manifest[T]) = new BePropertyMatcher[Any] {
+    def apply(left: Any) = {
+      val clazz = manifest.erasure.asInstanceOf[Class[T]]
+      BePropertyMatchResult(left.getClass.isAssignableFrom(clazz), "instance of "+ clazz.getName)
+    }
+  }
+  
 }
 
 @RunWith(classOf[JUnitRunner])
-class EventGeneratingStorageTest extends FunSuite with ShouldMatchers with EventMatchers {
+class EventGeneratingStorageTest extends FunSuite with ShouldMatchers with EventMatchers with Mockito with DefaultExampleExpectationsListener {
   import StorageEvents._
 
-  test("creating resource generates StorageUpdated and ResourceCreated") {
+  class TestStorage extends MemoryStorage with EventGeneratingStorage with StorageEventsCollecting
+
+  test("event capable storages should create an EventGeneratingAccessor") {
+    val storage = new TestStorage
+    val handle = storage.create("/some/path", "SomeName")
+    storage(handle) should be an instanceOf[EventGeneratingAccessor]
+  }
+  
+  test("EventGeneratingAccessor should delegate calls") {
+    val storage = new TestStorage {
+      val accessorMock = mock[Accessor]
+      override def apply(handle: Handle) = accessorMock
+    }
+    val handle = storage.create("/some/path", "SomeName")
+    storage.accessorMock.bytes returns Array(6,3,1)
+    storage(handle).bytes should equal (Array(6,3,1))
+    there was one(storage.accessorMock).bytes
+  }
+  
+  test("creating resources generates StorageUpdated and ResourceCreated") {
     val storage = new TestStorage
     storage.create("/some/path", "SomeName")
     storage events (contain (StorageUpdated) and contain (ResourceCreated))
   }
 
-  test("deleting resource generates StorageUpdated and ResourceDeleted") {
+  test("deleting resources generates StorageUpdated and ResourceDeleted") {
     val storage = new TestStorage
     val handle = storage.create("/some/path", "SomeName")
     
     storage clear events
     storage.delete(handle)
     storage events (contain (StorageUpdated) and contain (ResourceDeleted))
+  }
+  
+  test("writing data via accessor generates DataAccess and StorageUpdated") {
+    val storage = new TestStorage
+    val handle = storage.create("/some/path", "SomeName")
+    
+    storage clear events
+    storage(handle).bytes = Array(4,5,6,7)
+    storage events (contain (DataAccess) and contain (StorageUpdated))
   }
 }

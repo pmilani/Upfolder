@@ -5,6 +5,7 @@ import events._
 import java.util.UUID
 import java.io.InputStream
 import com.sun.tools.javac.util.ListBuffer
+import java.io.OutputStream
 
 trait StorageEventsLogging extends EventSignaling {
   abstract override def occurred(e: Event)(implicit eventInfo: Map[String,String] = Map.empty) {
@@ -43,29 +44,40 @@ trait EventGeneratingStorage extends Storage with EventSignaling {
     occurred(ResourceDeleted)(Map("handle"->handle.id.toString))
     occurred(StorageUpdated)
   }
+  
+  override abstract def apply(handle: Handle): Accessor = new EventGeneratingAccessor(super.apply(handle), this)
 }
 
 /**
- * Stackable event generation for Accessor
+ * Event generation for Accessor, delegating to original accessor
  */
-trait EventGeneratingAccessor extends Accessor with EventSignaling {
+class EventGeneratingAccessor(delegate: Accessor, signaling: EventSignaling) extends Accessor {
   import StorageEvents._
   
-  override abstract def bytes: Array[Byte] = {
-    val result = super.bytes
-    occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"bytes read"))
+  def handle = delegate.handle
+  
+  def bytes: Array[Byte] = {
+    val result = delegate.bytes
+    signaling.occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"bytes read"))
     result
   }
 
-  override abstract def bytes_=(value: Array[Byte]) = {
-    super.bytes_=(value)
-    occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"bytes written"))
-    occurred(StorageUpdated)
+  def bytes_=(value: Array[Byte]) {
+    delegate.bytes_=(value)
+    signaling.occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"bytes written"))
+    signaling.occurred(StorageUpdated)
   }
   
-  override abstract def inputStream[A](code: InputStream => A) = {
-    val result = super.inputStream(code)
-    occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"stream read"))
+  def inputStream[A](code: InputStream => A) = {
+    val result = delegate.inputStream(code)
+    signaling.occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"stream read"))
+    result
+  }
+  
+  def outputStream[A](code: OutputStream => A) = {
+    val result = delegate.outputStream(code)
+    signaling.occurred(DataAccess)(Map("handle"->handle.id.toString, "op"->"stream write"))
+    signaling.occurred(StorageUpdated)
     result
   }
 }

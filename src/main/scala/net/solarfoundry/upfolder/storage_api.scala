@@ -44,7 +44,7 @@ trait Storage {
 }
 
 trait Accessor {
-  val handle: Handle
+  def handle: Handle
   
   def bytes: Array[Byte]
   def bytes_=(value: Array[Byte])
