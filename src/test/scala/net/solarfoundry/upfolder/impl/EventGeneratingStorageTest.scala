@@ -57,6 +57,7 @@ trait EventMatchers {
 
   class EventsWrapper(eventWorkingSet: Seq[Event]) {
     def events(m: EventMatcher) = m.verifyEvents(eventWorkingSet)
+    def find(eventType: Event) = eventWorkingSet.filter(_.name == eventType.name)
   }
   
   trait RichStorageArgument
@@ -64,12 +65,13 @@ trait EventMatchers {
     
   class TestfulRichStorage(s: StorageEventsCollecting) {
     def clear(what: RichStorageArgument) {
-      if (what == events) s.receivedEvents.clear()
+      if (what == events) s.resetReceivedEvents()
     }
     def dump(what: RichStorageArgument) {
       if (what == events) 
       println(s.receivedEvents.mkString(","))
     }
+    def eventInfo(e: Event) = s.receivedEventInfo(e)
   }
 
   def contain(e: Event): EventMatcher = new ContainEventMatcher(e)
@@ -140,12 +142,16 @@ class EventGeneratingStorageTest extends FunSuite with ShouldMatchers with Event
     storage events (contain (StorageUpdated) and contain (ResourceDeleted))
   }
   
-  test("writing data via accessor generates DataAccess and StorageUpdated") {
+  test("writing data via accessor generates DataAccess with info and StorageUpdated") {
     val storage = new TestStorage
     val handle = storage.create("/some/path", "SomeName")
     
     storage clear events
     storage(handle).bytes = Array(4,5,6,7)
     storage events (contain (DataAccess) and contain (StorageUpdated))
+    val dataAccessInfo = storage.eventInfo(storage.find(DataAccess).head) 
+    dataAccessInfo should (contain key ("handle") and contain key ("op"))
+    dataAccessInfo("handle") should equal (handle.id.toString)
+    dataAccessInfo("op") should equal ("bytes written")
   }
 }

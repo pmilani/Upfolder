@@ -16,5 +16,7 @@ object StorageEvents {
 }
 
 trait EventSignaling {
-  def occurred(e: Event)(implicit eventInfo: Map[String,String] = Map.empty) {}
+  type EventInfo = Map[String,String]
+  
+  def occurred(e: Event)(implicit eventInfo: EventInfo = Map.empty) {}
 }

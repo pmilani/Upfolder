@@ -4,7 +4,6 @@ package impl
 import events._
 import java.util.UUID
 import java.io.InputStream
-import com.sun.tools.javac.util.ListBuffer
 import java.io.OutputStream
 
 trait StorageEventsLogging extends EventSignaling {
@@ -19,10 +18,22 @@ trait StorageEventsLogging extends EventSignaling {
 
 trait StorageEventsCollecting extends EventSignaling {
   import scala.collection.mutable.ListBuffer
+  import scala.collection.mutable.{Map => MutableMap}
+  
   val receivedEvents: ListBuffer[Event] = new ListBuffer
+  private val receivedEventInfo: MutableMap[UUID, EventInfo] = MutableMap()
+  
+  def receivedEventInfo(e: Event): Map[String,String] = receivedEventInfo(e.id)
 
+  def resetReceivedEvents() {
+    receivedEvents.clear()
+    receivedEventInfo.clear()
+  }
+  
   abstract override def occurred(e: Event)(implicit eventInfo: Map[String,String] = Map.empty) {
     receivedEvents += e
+    if (!eventInfo.isEmpty) 
+      receivedEventInfo(e.id) = eventInfo
   }
 }
 
